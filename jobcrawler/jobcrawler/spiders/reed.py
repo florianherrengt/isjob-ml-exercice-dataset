@@ -2,11 +2,16 @@ import scrapy
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 from bs4 import BeautifulSoup
+import html
 
 
 class Job(scrapy.Item):
+    url = scrapy.Field()
     title = scrapy.Field()
     description = scrapy.Field()
+    time = scrapy.Field()
+    salary = scrapy.Field()
+    location = scrapy.Field()
 
 
 class ReedSpider(CrawlSpider):
@@ -31,13 +36,20 @@ class ReedSpider(CrawlSpider):
 
     def parse_item(self, response):
         def extract_and_sanitize(selector):
-            return BeautifulSoup(response.css(selector).extract()[0]).get_text().strip().replace('\n', ' ')
+            return html.unescape(
+                BeautifulSoup(
+                    response.css(selector).extract()[0]
+                ).get_text().strip().replace('\n', ' ')
+            )
 
         item = Job()
+        item['url'] = response.url
         item['title'] = extract_and_sanitize('.description-container .job-header h1')
-        print(response.css('.description'))
         description = ''
         for element in response.xpath('//*[@class="description"]/node()[position()>2]').extract():
-            description = description + ' ' + BeautifulSoup(element).get_text().strip().replace('\n', ' ')
+            description = description + ' ' + html.unescape(BeautifulSoup(element).get_text().strip().replace('\n', ' '))
         item['description'] = description.strip()
+        item['location'] = extract_and_sanitize('.description-container .location')
+        item['time'] = extract_and_sanitize('.description-container .time')
+        item['salary'] = extract_and_sanitize('.description-container .salary')
         return item
